@@ -125,9 +125,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import { backend } from 'declarations/backend';
-
+    <script>
         const imageContainer = document.getElementById('imageContainer');
         const imageUpload = document.getElementById('imageUpload');
         const gridContainer = document.getElementById('gridContainer');
@@ -140,31 +138,23 @@
         let color = 0;
         let isDragging = false;
         let image = null;
-        let currentImageId = null;
         const gridSize = 11;
 
-        async function handleImageUpload(event) {
+        function handleImageUpload(event) {
             const file = event.target.files[0];
             const reader = new FileReader();
-            reader.onloadend = async () => {
-                const imageData = new Uint8Array(reader.result);
-                currentImageId = await backend.uploadImage(imageData);
-                image = URL.createObjectURL(new Blob([imageData]));
+            reader.onloadend = () => {
+                image = reader.result;
                 updateImage();
             };
             if (file) {
-                reader.readAsArrayBuffer(file);
+                reader.readAsDataURL(file);
             }
         }
 
-        async function updateImage() {
-            if (currentImageId !== null) {
-                const result = await backend.adjustImage(currentImageId, tone, color);
-                if (result) {
-                    const adjustedImageData = new Uint8Array(result.data);
-                    const adjustedImageUrl = URL.createObjectURL(new Blob([adjustedImageData]));
-                    imageContainer.innerHTML = `<img src="${adjustedImageUrl}" alt="Adjusted image">`;
-                }
+        function updateImage() {
+            if (image) {
+                imageContainer.innerHTML = `<img src="${image}" alt="Uploaded image" style="filter: brightness(${1 + tone/100}) saturate(${1 + color/100})">`;
             }
         }
 
@@ -172,7 +162,7 @@
             return Math.round(value / (100 / (gridSize - 1))) * (100 / (gridSize - 1));
         }
 
-        async function updateValues(clientX, clientY) {
+        function updateValues(clientX, clientY) {
             const rect = gridContainer.getBoundingClientRect();
             const x = (clientX - rect.left) / rect.width;
             const y = 1 - (clientY - rect.top) / rect.height;
@@ -186,7 +176,7 @@
             colorValue.textContent = `COLOR ${color}`;
 
             updateCursor();
-            await updateImage();
+            updateImage();
             updateGridDots();
         }
 
@@ -233,15 +223,15 @@
             }
         }
 
-        async function handlePointerDown(event) {
+        function handlePointerDown(event) {
             event.preventDefault();
             isDragging = true;
-            await updateValues(event.clientX, event.clientY);
+            updateValues(event.clientX, event.clientY);
         }
 
-        async function handlePointerMove(event) {
+        function handlePointerMove(event) {
             if (isDragging) {
-                await updateValues(event.clientX, event.clientY);
+                updateValues(event.clientX, event.clientY);
             }
         }
 

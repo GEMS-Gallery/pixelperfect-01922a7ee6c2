@@ -4,7 +4,6 @@ type Image =
    id: nat;
  };
 service : {
-  adjustImage: (nat, int, int) -> (opt Image);
   getImage: (nat) -> (opt Image) query;
   uploadImage: (blob) -> (nat);
 }
