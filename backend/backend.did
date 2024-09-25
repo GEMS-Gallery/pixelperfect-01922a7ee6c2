@@ -1,0 +1,11 @@
+type Image = 
+ record {
+   data: blob;
+   id: nat;
+ };
+service : {
+  applyGrayscale: (nat) -> (opt Image);
+  applySepia: (nat) -> (opt Image);
+  getImage: (nat) -> (opt Image) query;
+  uploadImage: (blob) -> (nat);
+}
