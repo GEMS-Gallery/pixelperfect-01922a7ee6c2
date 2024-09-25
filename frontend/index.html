@@ -132,28 +132,21 @@
             cursor: not-allowed;
         }
         .compare-container {
-            position: relative;
+            display: flex;
             width: 100%;
             height: 100%;
             overflow: hidden;
         }
+        .compare-image-container {
+            flex: 1;
+            position: relative;
+        }
         .compare-image {
-            position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
             object-fit: contain;
         }
         .compare-slider {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 50%;
-            height: 100%;
-            overflow: hidden;
-        }
-        .compare-handle {
             position: absolute;
             top: 0;
             bottom: 0;
@@ -169,6 +162,21 @@
             }
             .grid-container {
                 aspect-ratio: 1/1;
+            }
+            .compare-container {
+                flex-direction: column;
+            }
+            .compare-image-container {
+                width: 100%;
+                height: 50%;
+            }
+            .compare-slider {
+                width: 100%;
+                height: 4px;
+                top: 50%;
+                left: 0;
+                transform: translateY(-50%);
+                cursor: ns-resize;
             }
         }
     </style>
@@ -493,16 +501,17 @@
                     const editedImageStyle = `filter: brightness(${1 + tone/100}) saturate(${1 + color/100}) contrast(${contrast}%) hue-rotate(${hue}deg) blur(${blur}px)`;
                     imageContainer.innerHTML = `
                         <div class="compare-container">
-                            <img src="${originalImage}" alt="Original image" class="compare-image">
-                            <div class="compare-slider">
+                            <div class="compare-image-container">
+                                <img src="${originalImage}" alt="Original image" class="compare-image">
+                            </div>
+                            <div class="compare-image-container">
                                 <img src="${image}" alt="Edited image" class="compare-image" style="${editedImageStyle}">
                             </div>
-                            <div class="compare-handle"></div>
+                            <div class="compare-slider"></div>
                         </div>
                     `;
                     const slider = imageContainer.querySelector('.compare-slider');
-                    const handle = imageContainer.querySelector('.compare-handle');
-                    handle.addEventListener('mousedown', startDragging);
+                    slider.addEventListener('mousedown', startDragging);
                     document.addEventListener('mousemove', drag);
                     document.addEventListener('mouseup', stopDragging);
                     isComparing = true;
@@ -524,10 +533,19 @@
         function drag(e) {
             if (!isDragging) return;
             const container = imageContainer.getBoundingClientRect();
-            const x = Math.max(0, Math.min(e.clientX - container.left, container.width));
-            const percent = (x / container.width) * 100;
-            imageContainer.querySelector('.compare-slider').style.width = `${percent}%`;
-            imageContainer.querySelector('.compare-handle').style.left = `${percent}%`;
+            const isVertical = window.innerWidth <= 600;
+            
+            if (isVertical) {
+                const y = Math.max(0, Math.min(e.clientY - container.top, container.height));
+                const percent = (y / container.height) * 100;
+                imageContainer.querySelector('.compare-slider').style.top = `${percent}%`;
+                imageContainer.querySelectorAll('.compare-image-container')[0].style.height = `${percent}%`;
+            } else {
+                const x = Math.max(0, Math.min(e.clientX - container.left, container.width));
+                const percent = (x / container.width) * 100;
+                imageContainer.querySelector('.compare-slider').style.left = `${percent}%`;
+                imageContainer.querySelectorAll('.compare-image-container')[0].style.width = `${percent}%`;
+            }
         }
 
         function stopDragging() {
