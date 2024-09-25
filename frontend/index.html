@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Image Editor</title>
+    <title>Advanced Interactive Image Editor</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -18,7 +18,7 @@
         }
         .container {
             width: 100%;
-            max-width: 400px;
+            max-width: 800px;
             padding: 20px;
         }
         .controls {
@@ -28,7 +28,7 @@
             margin-bottom: 16px;
         }
         .image-container {
-            aspect-ratio: 1;
+            aspect-ratio: 16/9;
             background-color: #4a5568;
             margin-bottom: 16px;
             position: relative;
@@ -38,7 +38,7 @@
         .image-container img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
         }
         .upload-label {
             position: absolute;
@@ -90,6 +90,44 @@
             transform: translate(-50%, -50%);
             transition: left 0.1s, top 0.1s;
         }
+        .adjustment-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .adjustment-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .adjustment-control input {
+            width: 100px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        button {
+            background-color: #3182ce;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2c5282;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            .grid-container {
+                aspect-ratio: 1/1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -119,13 +157,40 @@
             </label>
         </div>
         
+        <div class="adjustment-controls">
+            <div class="adjustment-control">
+                <label for="contrast">Contrast</label>
+                <input type="range" id="contrast" min="0" max="200" value="100">
+            </div>
+            <div class="adjustment-control">
+                <label for="hue">Hue</label>
+                <input type="range" id="hue" min="0" max="360" value="0">
+            </div>
+            <div class="adjustment-control">
+                <label for="blur">Blur</label>
+                <input type="range" id="blur" min="0" max="10" value="0" step="0.1">
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="undoBtn">Undo</button>
+            <button id="redoBtn">Redo</button>
+            <button id="resetBtn">Reset</button>
+            <button id="saveBtn">Save Image</button>
+            <button id="compareBtn">Compare</button>
+        </div>
+        
         <div class="grid-container" id="gridContainer">
             <div class="grid" id="grid"></div>
             <div class="cursor" id="cursor"></div>
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { Actor, HttpAgent } from "@dfinity/agent";
+        import { AuthClient } from "@dfinity/auth-client";
+        import { idlFactory } from "./declarations/backend/backend.did.js";
+
         const imageContainer = document.getElementById('imageContainer');
         const imageUpload = document.getElementById('imageUpload');
         const gridContainer = document.getElementById('gridContainer');
@@ -133,19 +198,54 @@
         const cursor = document.getElementById('cursor');
         const toneValue = document.getElementById('toneValue');
         const colorValue = document.getElementById('colorValue');
+        const contrastInput = document.getElementById('contrast');
+        const hueInput = document.getElementById('hue');
+        const blurInput = document.getElementById('blur');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const compareBtn = document.getElementById('compareBtn');
 
         let tone = 0;
         let color = 0;
+        let contrast = 100;
+        let hue = 0;
+        let blur = 0;
         let isDragging = false;
         let image = null;
+        let originalImage = null;
         const gridSize = 11;
+        let editHistory = [];
+        let currentEditIndex = -1;
+
+        let authClient;
+        let actor;
+
+        async function initAuth() {
+            authClient = await AuthClient.create();
+            if (await authClient.isAuthenticated()) {
+                handleAuthenticated();
+            }
+        }
+
+        async function handleAuthenticated() {
+            const identity = await authClient.getIdentity();
+            const agent = new HttpAgent({ identity });
+            actor = Actor.createActor(idlFactory, {
+                agent,
+                canisterId: process.env.BACKEND_CANISTER_ID,
+            });
+        }
 
         function handleImageUpload(event) {
             const file = event.target.files[0];
             const reader = new FileReader();
             reader.onloadend = () => {
                 image = reader.result;
+                originalImage = image;
                 updateImage();
+                saveEditState();
             };
             if (file) {
                 reader.readAsDataURL(file);
@@ -154,7 +254,7 @@
 
         function updateImage() {
             if (image) {
-                imageContainer.innerHTML = `<img src="${image}" alt="Uploaded image" style="filter: brightness(${1 + tone/100}) saturate(${1 + color/100})">`;
+                imageContainer.innerHTML = `<img src="${image}" alt="Uploaded image" style="filter: brightness(${1 + tone/100}) saturate(${1 + color/100}) contrast(${contrast}%) hue-rotate(${hue}deg) blur(${blur}px)">`;
             }
         }
 
@@ -236,7 +336,104 @@
         }
 
         function handlePointerUp() {
+            if (isDragging) {
+                saveEditState();
+            }
             isDragging = false;
+        }
+
+        function saveEditState() {
+            const currentState = {
+                tone,
+                color,
+                contrast,
+                hue,
+                blur
+            };
+            editHistory = editHistory.slice(0, currentEditIndex + 1);
+            editHistory.push(currentState);
+            currentEditIndex++;
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (currentEditIndex > 0) {
+                currentEditIndex--;
+                const previousState = editHistory[currentEditIndex];
+                applyState(previousState);
+            }
+        }
+
+        function redo() {
+            if (currentEditIndex < editHistory.length - 1) {
+                currentEditIndex++;
+                const nextState = editHistory[currentEditIndex];
+                applyState(nextState);
+            }
+        }
+
+        function applyState(state) {
+            tone = state.tone;
+            color = state.color;
+            contrast = state.contrast;
+            hue = state.hue;
+            blur = state.blur;
+            updateImage();
+            updateCursor();
+            updateGridDots();
+            updateSliders();
+            updateUndoRedoButtons();
+        }
+
+        function updateSliders() {
+            contrastInput.value = contrast;
+            hueInput.value = hue;
+            blurInput.value = blur;
+        }
+
+        function updateUndoRedoButtons() {
+            undoBtn.disabled = currentEditIndex <= 0;
+            redoBtn.disabled = currentEditIndex >= editHistory.length - 1;
+        }
+
+        function reset() {
+            tone = 0;
+            color = 0;
+            contrast = 100;
+            hue = 0;
+            blur = 0;
+            updateImage();
+            updateCursor();
+            updateGridDots();
+            updateSliders();
+            saveEditState();
+        }
+
+        async function saveImage() {
+            if (image && actor) {
+                const response = await fetch(image);
+                const blob = await response.blob();
+                const arrayBuffer = await blob.arrayBuffer();
+                const imageData = new Uint8Array(arrayBuffer);
+                const imageId = await actor.uploadImage(imageData);
+                console.log('Image saved with ID:', imageId);
+                alert('Image saved successfully!');
+            } else {
+                alert('Please upload an image and log in to save.');
+            }
+        }
+
+        function compareImages() {
+            if (image && originalImage) {
+                const currentImage = imageContainer.innerHTML;
+                imageContainer.innerHTML = `
+                    <img src="${originalImage}" alt="Original image" style="position: absolute; width: 100%; height: 100%; object-fit: contain;">
+                    ${currentImage}
+                `;
+                setTimeout(() => {
+                    imageContainer.innerHTML = currentImage;
+                }, 1000);
+            }
         }
 
         imageUpload.addEventListener('change', handleImageUpload);
@@ -244,9 +441,50 @@
         gridContainer.addEventListener('pointermove', handlePointerMove);
         gridContainer.addEventListener('pointerup', handlePointerUp);
         gridContainer.addEventListener('pointerleave', handlePointerUp);
+        contrastInput.addEventListener('input', () => {
+            contrast = contrastInput.value;
+            updateImage();
+            saveEditState();
+        });
+        hueInput.addEventListener('input', () => {
+            hue = hueInput.value;
+            updateImage();
+            saveEditState();
+        });
+        blurInput.addEventListener('input', () => {
+            blur = blurInput.value;
+            updateImage();
+            saveEditState();
+        });
+        undoBtn.addEventListener('click', undo);
+        redoBtn.addEventListener('click', redo);
+        resetBtn.addEventListener('click', reset);
+        saveBtn.addEventListener('click', saveImage);
+        compareBtn.addEventListener('click', compareImages);
 
         createGrid();
         updateCursor();
+        initAuth();
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey || event.metaKey) {
+                switch (event.key) {
+                    case 'z':
+                        event.preventDefault();
+                        undo();
+                        break;
+                    case 'y':
+                        event.preventDefault();
+                        redo();
+                        break;
+                    case 's':
+                        event.preventDefault();
+                        saveImage();
+                        break;
+                }
+            }
+        });
     </script>
 </body>
 </html>

@@ -2,8 +2,11 @@ type Image =
  record {
    data: blob;
    id: nat;
+   owner: principal;
  };
 service : {
+  deleteImage: (nat) -> (bool);
   getImage: (nat) -> (opt Image) query;
+  getUserImages: () -> (vec nat) query;
   uploadImage: (blob) -> (nat);
 }
