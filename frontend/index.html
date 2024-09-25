@@ -131,6 +131,28 @@
             background-color: #718096;
             cursor: not-allowed;
         }
+        .compare-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .compare-slider {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 50%;
+            overflow: hidden;
+        }
+        .compare-handle {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: white;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ew-resize;
+        }
         @media (max-width: 600px) {
             .container {
                 padding: 10px;
@@ -235,6 +257,7 @@
         const gridSize = 11;
         let editHistory = [];
         let currentEditIndex = -1;
+        let isComparing = false;
 
         let authClient;
         let actor;
@@ -456,15 +479,56 @@
 
         function compareImages() {
             if (image && originalImage) {
-                const currentImage = imageContainer.innerHTML;
-                imageContainer.innerHTML = `
-                    <img src="${originalImage}" alt="Original image" style="position: absolute; width: 100%; height: 100%; object-fit: contain;">
-                    ${currentImage}
-                `;
-                setTimeout(() => {
-                    imageContainer.innerHTML = currentImage;
-                }, 1000);
+                if (!isComparing) {
+                    const currentImage = imageContainer.innerHTML;
+                    imageContainer.innerHTML = `
+                        <div class="compare-container">
+                            <div class="compare-slider">
+                                <img src="${originalImage}" alt="Original image" style="width: 100%; height: 100%; object-fit: contain;">
+                            </div>
+                            ${currentImage}
+                            <div class="compare-handle"></div>
+                        </div>
+                    `;
+                    const slider = imageContainer.querySelector('.compare-slider');
+                    const handle = imageContainer.querySelector('.compare-handle');
+                    handle.addEventListener('mousedown', startDragging);
+                    document.addEventListener('mousemove', drag);
+                    document.addEventListener('mouseup', stopDragging);
+                    isComparing = true;
+                    compareBtn.innerHTML = '<i data-feather="x"></i>Exit Compare';
+                    feather.replace();
+                } else {
+                    exitCompareMode();
+                }
+            } else {
+                alert('Please upload and edit an image before comparing.');
             }
+        }
+
+        function startDragging(e) {
+            e.preventDefault();
+            isDragging = true;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            const container = imageContainer.getBoundingClientRect();
+            const x = Math.max(0, Math.min(e.clientX - container.left, container.width));
+            const percent = (x / container.width) * 100;
+            imageContainer.querySelector('.compare-slider').style.width = `${percent}%`;
+            imageContainer.querySelector('.compare-handle').style.left = `${percent}%`;
+        }
+
+        function stopDragging() {
+            isDragging = false;
+        }
+
+        function exitCompareMode() {
+            updateImage();
+            isComparing = false;
+            compareBtn.innerHTML = '<i data-feather="eye"></i>Compare';
+            feather.replace();
         }
 
         imageUpload.addEventListener('change', handleImageUpload);
