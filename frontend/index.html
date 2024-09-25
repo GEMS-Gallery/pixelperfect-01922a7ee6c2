@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Interactive Image Editor</title>
+    <script src="https://unpkg.com/feather-icons"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -50,6 +51,9 @@
             padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .upload-input {
             display: none;
@@ -116,6 +120,9 @@
             padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         button:hover {
             background-color: #2c5282;
@@ -141,21 +148,12 @@
                 <span id="toneValue">TONE 0</span>
                 <span id="colorValue">COLOR 0</span>
             </div>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="21" y1="4" x2="14" y2="4"></line>
-                <line x1="10" y1="4" x2="3" y2="4"></line>
-                <line x1="21" y1="12" x2="12" y2="12"></line>
-                <line x1="8" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="20" x2="16" y2="20"></line>
-                <line x1="12" y1="20" x2="3" y2="20"></line>
-                <line x1="14" y1="2" x2="14" y2="6"></line>
-                <line x1="8" y1="10" x2="8" y2="14"></line>
-                <line x1="16" y1="18" x2="16" y2="22"></line>
-            </svg>
+            <i data-feather="sliders"></i>
         </div>
         
         <div class="image-container" id="imageContainer">
             <label class="upload-label">
+                <i data-feather="upload"></i>
                 Upload Image
                 <input type="file" accept="image/*" class="upload-input" id="imageUpload">
             </label>
@@ -177,11 +175,26 @@
         </div>
 
         <div class="button-group">
-            <button id="undoBtn" disabled>Undo</button>
-            <button id="redoBtn" disabled>Redo</button>
-            <button id="resetBtn">Reset</button>
-            <button id="saveBtn">Save Image</button>
-            <button id="compareBtn">Compare</button>
+            <button id="undoBtn" disabled aria-label="Undo">
+                <i data-feather="rotate-ccw"></i>
+                Undo
+            </button>
+            <button id="redoBtn" disabled aria-label="Redo">
+                <i data-feather="rotate-cw"></i>
+                Redo
+            </button>
+            <button id="resetBtn" aria-label="Reset">
+                <i data-feather="refresh-cw"></i>
+                Reset
+            </button>
+            <button id="saveBtn" aria-label="Save Image">
+                <i data-feather="save"></i>
+                Save Image
+            </button>
+            <button id="compareBtn" aria-label="Compare">
+                <i data-feather="eye"></i>
+                Compare
+            </button>
         </div>
         
         <div class="grid-container" id="gridContainer">
@@ -503,6 +516,9 @@
                 }
             }
         });
+
+        // Initialize Feather icons
+        feather.replace();
     </script>
 </body>
 </html>
