@@ -120,6 +120,10 @@
         button:hover {
             background-color: #2c5282;
         }
+        button:disabled {
+            background-color: #718096;
+            cursor: not-allowed;
+        }
         @media (max-width: 600px) {
             .container {
                 padding: 10px;
@@ -173,8 +177,8 @@
         </div>
 
         <div class="button-group">
-            <button id="undoBtn">Undo</button>
-            <button id="redoBtn">Redo</button>
+            <button id="undoBtn" disabled>Undo</button>
+            <button id="redoBtn" disabled>Redo</button>
             <button id="resetBtn">Reset</button>
             <button id="saveBtn">Save Image</button>
             <button id="compareBtn">Compare</button>
@@ -409,17 +413,31 @@
             saveEditState();
         }
 
-        async function saveImage() {
-            if (image && actor) {
-                const response = await fetch(image);
-                const blob = await response.blob();
-                const arrayBuffer = await blob.arrayBuffer();
-                const imageData = new Uint8Array(arrayBuffer);
-                const imageId = await actor.uploadImage(imageData);
-                console.log('Image saved with ID:', imageId);
-                alert('Image saved successfully!');
+        function saveImage() {
+            if (image) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.filter = `brightness(${1 + tone/100}) saturate(${1 + color/100}) contrast(${contrast}%) hue-rotate(${hue}deg) blur(${blur}px)`;
+                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                    
+                    canvas.toBlob((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'edited_image.png';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 'image/png');
+                };
+                img.src = image;
             } else {
-                alert('Please upload an image and log in to save.');
+                alert('Please upload an image to save.');
             }
         }
 
