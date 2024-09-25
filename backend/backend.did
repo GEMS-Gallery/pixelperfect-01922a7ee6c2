@@ -4,8 +4,7 @@ type Image =
    id: nat;
  };
 service : {
-  applyGrayscale: (nat) -> (opt Image);
-  applySepia: (nat) -> (opt Image);
+  adjustImage: (nat, int, int) -> (opt Image);
   getImage: (nat) -> (opt Image) query;
   uploadImage: (blob) -> (nat);
 }
